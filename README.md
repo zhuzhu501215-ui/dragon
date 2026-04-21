@@ -1,2 +1,619 @@
 # dragon
 game created for COMP2113
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <random>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace {
+
+std::mt19937& rng() {
+  static std::mt19937 gen(static_cast<unsigned>(
+      std::chrono::steady_clock::now().time_since_epoch().count()));
+  return gen;
+}
+
+double rand01() {
+  std::uniform_real_distribution<double> d(0.0, 1.0);
+  return d(rng());
+}
+
+int randInt(int a, int b) {
+  std::uniform_int_distribution<int> d(a, b);
+  return d(rng());
+}
+
+void pause() {
+  std::cout << "\n[ 按 Enter 继续... ]";
+  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
+std::string repeat(char c, int n) { return std::string(std::max(0, n), c); }
+
+enum class EquipSpecial { None, BerserkerAxe };
+
+struct Equipment {
+  std::string id;
+  std::string name;
+  std::string desc;
+  int atk = 0;
+  int def = 0;
+  int hp = 0;
+  double luck = 0.0;
+  EquipSpecial special = EquipSpecial::None;
+  int price = 0;
+
+  Equipment() = default;
+  Equipment(std::string id_, std::string name_, std::string desc_, int atk_, int def_,
+            int hp_, double luck_, EquipSpecial special_, int price_)
+      : id(std::move(id_)),
+        name(std::move(name_)),
+        desc(std::move(desc_)),
+        atk(atk_),
+        def(def_),
+        hp(hp_),
+        luck(luck_),
+        special(special_),
+        price(price_) {}
+};
+
+const Equipment kShopCatalog[] = {
+    {"wood_sword", "[剑] 木剑", "攻击力 +5", 5, 0, 0, 0.0, EquipSpecial::None, 40},
+    {"iron_armor", "[甲] 铁甲", "防御力 +8", 0, 8, 0, 0.0, EquipSpecial::None, 55},
+    {"ruby", "[宝] 红宝石", "最大生命 +25", 0, 0, 25, 0.0, EquipSpecial::None, 45},
+    {"clover", "[幸] 四叶草", "幸运 +0.05", 0, 0, 0, 0.05, EquipSpecial::None, 50},
+};
+
+Equipment makeBerserkerAxe() {
+  Equipment e;
+  e.id = "berserker_axe";
+  e.name = "[斧] 狂战士之斧";
+  e.desc = "每次攻击消耗 20 HP，当次伤害翻倍（范·地狱火二星专属）";
+  e.special = EquipSpecial::BerserkerAxe;
+  return e;
+}
+
+struct Blessing {
+  std::string name;
+  std::string desc;
+  int atk = 0;
+  int def = 0;
+  int hp = 0;
+  double luck = 0.0;
+};
+
+struct Character {
+  std::string name;
+  int baseAtk = 0;
+  int baseDef = 0;
+  int baseMaxHp = 0;
+  double baseLuck = 0.0;
+  std::string skillName;
+  std::string skillDesc;
+
+  int stars = 1;
+  int maxHp = 0;
+  int hp = 0;
+  int atk = 0;
+  int def = 0;
+  double luck = 0.0;
+
+  std::vector<Equipment> items;
+
+  void recomputeStats() {
+    atk = baseAtk;
+    def = baseDef;
+    maxHp = std::min(300, baseMaxHp);
+    luck = baseLuck;
+    for (const auto& it : items) {
+      atk += it.atk;
+      def += it.def;
+      maxHp = std::min(300, maxHp + it.hp);
+      luck += it.luck;
+    }
+    hp = std::min(hp, maxHp);
+  }
+
+  bool hasBerserkerAxe() const {
+    for (const auto& it : items) {
+      if (it.special == EquipSpecial::BerserkerAxe) return true;
+    }
+    return false;
+  }
+};
+
+Character makeVaneHellion() {
+  Character c;
+  c.name = "范·地狱火 (Vane Hellion)";
+  c.baseAtk = 50;
+  c.baseDef = 20;
+  c.baseMaxHp = 150;
+  c.baseLuck = 0.30;
+  c.skillName = "地狱契约";
+  c.skillDesc = "升至二星后获得专属装备「狂战士之斧」。";
+  c.stars = 1;
+  c.recomputeStats();
+  c.hp = c.maxHp;
+  return c;
+}
+
+struct Monster {
+  std::string name;
+  int hp = 0;
+  int maxHp = 0;
+  int atk = 0;
+  int def = 0;
+  int gold = 0;
+  bool elite = false;
+};
+
+Monster makeSlime(bool elite) {
+  Monster m{"史莱姆", 80, 80, 18, 5, 12, elite};
+  if (elite) {
+    m.hp = m.maxHp = 160;
+    m.atk = 32;
+    m.def = 12;
+    m.gold = 35;
+    m.name = "精英·史莱姆王";
+  }
+  return m;
+}
+
+Monster makeGoblin(bool elite) {
+  Monster m{"哥布林", 95, 95, 24, 8, 15, elite};
+  if (elite) {
+    m.hp = m.maxHp = 190;
+    m.atk = 40;
+    m.def = 16;
+    m.gold = 42;
+    m.name = "精英·哥布林酋长";
+  }
+  return m;
+}
+
+Monster makeWolf(bool elite) {
+  Monster m{"野狼", 70, 70, 30, 4, 14, elite};
+  if (elite) {
+    m.hp = m.maxHp = 150;
+    m.atk = 48;
+    m.def = 10;
+    m.gold = 40;
+    m.name = "精英·霜狼";
+  }
+  return m;
+}
+
+Monster makeGolem(bool elite) {
+  Monster m{"石像怪", 120, 120, 20, 18, 18, elite};
+  if (elite) {
+    m.hp = m.maxHp = 240;
+    m.atk = 36;
+    m.def = 28;
+    m.gold = 48;
+    m.name = "精英·岩石领主";
+  }
+  return m;
+}
+
+Monster randomCommon() {
+  int r = randInt(0, 3);
+  if (r == 0) return makeSlime(false);
+  if (r == 1) return makeGoblin(false);
+  if (r == 2) return makeWolf(false);
+  return makeGolem(false);
+}
+
+Monster randomElite() {
+  int r = randInt(0, 3);
+  if (r == 0) return makeSlime(true);
+  if (r == 1) return makeGoblin(true);
+  if (r == 2) return makeWolf(true);
+  return makeGolem(true);
+}
+
+struct CombatResult {
+  bool win = false;
+  int goldEarned = 0;
+  std::vector<std::string> log;
+};
+
+int calcDamage(int rawAtk, int def) {
+  int d = rawAtk - def;
+  return std::max(1, d);
+}
+
+struct GameState {
+  Character hero;
+  int stage = 1;
+  int gold = 80;
+  int score = 0;
+  std::vector<Blessing> blessings;
+};
+
+void ensureVaneTwoStarGear(GameState& g) {
+  if (g.hero.stars < 2) return;
+  for (const auto& it : g.hero.items) {
+    if (it.special == EquipSpecial::BerserkerAxe) return;
+  }
+  g.hero.items.push_back(makeBerserkerAxe());
+  g.hero.recomputeStats();
+  g.hero.hp = std::min(g.hero.hp, g.hero.maxHp);
+}
+
+int heroAttackDamage(GameState& g, int monsterDef, bool& crit, bool& axeUsed,
+                     std::string& note) {
+  crit = false;
+  axeUsed = false;
+  note.clear();
+  int base = calcDamage(g.hero.atk, monsterDef);
+
+  bool hasAxe = g.hero.hasBerserkerAxe();
+  if (hasAxe && g.hero.hp > 20) {
+    g.hero.hp -= 20;
+    base *= 2;
+    axeUsed = true;
+    note += "[狂战士之斧] -20 HP，伤害翻倍 ";
+  }
+
+  if (rand01() < g.hero.luck) {
+    base *= 2;
+    crit = true;
+    note += "[幸运暴击] 双倍伤害 ";
+  }
+  return base;
+}
+
+void monsterAttack(GameState& g, Monster& m) {
+  int dmg = calcDamage(m.atk, g.hero.def);
+  g.hero.hp -= dmg;
+}
+
+CombatResult runBattle(GameState& g, Monster m) {
+  CombatResult r;
+  std::ostringstream header;
+  header << ">>> 遭遇 " << (m.elite ? "[精英] " : "") << m.name << " <<<";
+  r.log.push_back(header.str());
+
+  int round = 0;
+  while (g.hero.hp > 0 && m.hp > 0) {
+    ++round;
+    std::ostringstream line;
+    line << "-- 第 " << round << " 回合 --";
+
+    bool crit = false, axe = false;
+    std::string note;
+    int hdmg = heroAttackDamage(g, m.def, crit, axe, note);
+    m.hp -= hdmg;
+    line << "\n  [#] 你 造成 " << hdmg << " 伤害";
+    if (!note.empty()) line << "  " << note;
+    if (m.hp < 0) m.hp = 0;
+    int bar = m.maxHp > 0 ? (20 * m.hp / m.maxHp) : 0;
+    bar = std::clamp(bar, 0, 20);
+    line << "\n  [" << repeat('#', bar) << repeat('.', 20 - bar) << "] "
+         << m.hp << "/" << m.maxHp;
+
+    r.log.push_back(line.str());
+
+    if (m.hp <= 0) {
+      r.win = true;
+      r.goldEarned = m.gold;
+      std::ostringstream win;
+      win << "\n  [+] 击败！获得金币 +" << m.gold;
+      r.log.push_back(win.str());
+      g.gold += m.gold;
+      g.score += 50 + (m.elite ? 80 : 0) + std::max(0, g.hero.hp / 2);
+      break;
+    }
+
+    monsterAttack(g, m);
+    int md = calcDamage(m.atk, g.hero.def);
+    std::ostringstream defl;
+    defl << "  [*] " << m.name << " 反击 " << md << " → 你剩余 HP "
+         << std::max(0, g.hero.hp) << "/" << g.hero.maxHp;
+    r.log.push_back(defl.str());
+
+    if (g.hero.hp <= 0) {
+      r.win = false;
+      r.log.push_back("\n  [X] 你倒下了...");
+      break;
+    }
+  }
+  return r;
+}
+
+char gradeFromScore(int s) {
+  if (s >= 900) return 'S';
+  if (s >= 650) return 'A';
+  if (s >= 400) return 'B';
+  if (s >= 200) return 'C';
+  return 'D';
+}
+
+void printBar(const std::string& title, int cur, int max, char fill, int width = 24) {
+  int filled = 0;
+  if (max > 0) filled = static_cast<int>(std::llround((1.0 * cur / max) * width));
+  filled = std::clamp(filled, 0, width);
+  std::cout << "  " << title << " [";
+  for (int i = 0; i < width; ++i) std::cout << (i < filled ? fill : '.');
+  std::cout << "] " << cur << "/" << max << "\n";
+}
+
+void printHeader(const std::string& t) {
+  std::cout << "\n"
+            << "╔" << repeat('═', 58) << "╗\n"
+            << "║ " << std::left << std::setw(56) << t << " ║\n"
+            << "╚" << repeat('═', 58) << "╝\n";
+}
+
+void printHeroPanel(const GameState& g) {
+  std::cout << "\n┌── 角色 ────────────────────────────────────────────────┐\n";
+  std::cout << "│ " << g.hero.name << "  ★" << g.hero.stars << "\n";
+  printBar("HP ", g.hero.hp, g.hero.maxHp, '#');
+  std::cout << "│ ATK " << g.hero.atk << "   DEF " << g.hero.def
+            << "   LUCK " << std::fixed << std::setprecision(2) << g.hero.luck << std::defaultfloat
+            << "\n";
+  std::cout << "│ 技能: " << g.hero.skillName << " — " << g.hero.skillDesc << "\n";
+  std::cout << "│ 装备: ";
+  if (g.hero.items.empty()) {
+    std::cout << "(无)\n";
+  } else {
+    for (size_t i = 0; i < g.hero.items.size(); ++i) {
+      std::cout << g.hero.items[i].name;
+      if (i + 1 < g.hero.items.size()) std::cout << " | ";
+    }
+    std::cout << "\n";
+  }
+  if (!g.blessings.empty()) {
+    std::cout << "│ 赐福: ";
+    for (size_t i = 0; i < g.blessings.size(); ++i) {
+      std::cout << g.blessings[i].name;
+      if (i + 1 < g.blessings.size()) std::cout << ", ";
+    }
+    std::cout << "\n";
+  }
+  std::cout << "│ 金币: " << g.gold << "    关卡: " << g.stage << "/9"
+            << "    积分: " << g.score << "\n";
+  std::cout << "└────────────────────────────────────────────────────────┘\n";
+}
+
+void shopLoop(GameState& g) {
+  while (true) {
+    printHeader("商 城");
+    printHeroPanel(g);
+    std::cout
+        << "\n  [1] 购买装备\n"
+        << "  [2] 购买赐福\n"
+        << "  [3] 花费 60 金币：范·地狱火 升星 (→2星，解锁狂战士之斧)\n"
+        << "  [4] 花费 25 金币：回复 40 HP（不超过上限）\n"
+        << "  [0] 离开商店\n"
+        << "\n请选择: ";
+    std::string line;
+    if (!std::getline(std::cin, line)) return;
+    if (line == "0") break;
+    if (line == "1") {
+      std::cout << "\n可购装备：\n";
+      for (size_t i = 0; i < sizeof(kShopCatalog) / sizeof(kShopCatalog[0]); ++i) {
+        const auto& e = kShopCatalog[i];
+        std::cout << "  [" << (i + 1) << "] " << e.name << " — " << e.desc << " — 价格 " << e.price
+                  << "\n";
+      }
+      std::cout << "输入编号购买，0 返回: ";
+      std::string pick;
+      if (!std::getline(std::cin, pick)) return;
+      int id = 0;
+      try {
+        id = std::stoi(pick);
+      } catch (...) {
+        id = 0;
+      }
+      if (id <= 0) continue;
+      size_t idx = static_cast<size_t>(id - 1);
+      if (idx >= sizeof(kShopCatalog) / sizeof(kShopCatalog[0])) continue;
+      const Equipment& e = kShopCatalog[idx];
+      if (g.gold < e.price) {
+        std::cout << "金币不足。\n";
+        pause();
+        continue;
+      }
+      g.gold -= e.price;
+      g.hero.items.push_back(e);
+      g.hero.recomputeStats();
+      g.hero.hp = std::min(g.hero.hp, g.hero.maxHp);
+      ensureVaneTwoStarGear(g);
+      std::cout << "已购买 " << e.name << "\n";
+      pause();
+    } else if (line == "2") {
+      std::cout << "\n赐福列表：\n"
+                << "  [1] 战神祝福 — ATK+5 — 55 金币\n"
+                << "  [2] 守护祝福 — DEF+6 — 55 金币\n"
+                << "  [3] 生命祝福 — 最大 HP+30 — 60 金币\n"
+                << "  [4] 幸运祝福 — LUCK+0.03 — 65 金币\n"
+                << "0 返回\n选: ";
+      std::string pick;
+      if (!std::getline(std::cin, pick)) return;
+      Blessing b;
+      int cost = 0;
+      if (pick == "1") {
+        b = {"战神祝福", "ATK+5", 5, 0, 0, 0};
+        cost = 55;
+      } else if (pick == "2") {
+        b = {"守护祝福", "DEF+6", 0, 6, 0, 0};
+        cost = 55;
+      } else if (pick == "3") {
+        b = {"生命祝福", "最大HP+30", 0, 0, 30, 0};
+        cost = 60;
+      } else if (pick == "4") {
+        b = {"幸运祝福", "LUCK+0.03", 0, 0, 0, 0.03};
+        cost = 65;
+      } else {
+        continue;
+      }
+      if (g.gold < cost) {
+        std::cout << "金币不足。\n";
+        pause();
+        continue;
+      }
+      g.gold -= cost;
+      g.blessings.push_back(b);
+      g.hero.baseAtk += b.atk;
+      g.hero.baseDef += b.def;
+      g.hero.baseMaxHp += b.hp;
+      g.hero.baseLuck += b.luck;
+      g.hero.recomputeStats();
+      if (b.hp > 0) g.hero.hp = std::min(g.hero.maxHp, g.hero.hp + b.hp);
+      ensureVaneTwoStarGear(g);
+      std::cout << "获得赐福：" << b.name << "\n";
+      pause();
+    } else if (line == "3") {
+      if (g.hero.name.find("范·地狱火") == std::string::npos) {
+        std::cout << "仅范·地狱火可升星。\n";
+        pause();
+        continue;
+      }
+      if (g.hero.stars >= 2) {
+        std::cout << "已是二星或以上。\n";
+        pause();
+        continue;
+      }
+      if (g.gold < 60) {
+        std::cout << "金币不足。\n";
+        pause();
+        continue;
+      }
+      g.gold -= 60;
+      g.hero.stars = 2;
+      ensureVaneTwoStarGear(g);
+      std::cout << "升星成功！获得专属装备「狂战士之斧」。\n";
+      pause();
+    } else if (line == "4") {
+      if (g.gold < 25) {
+        std::cout << "金币不足。\n";
+        pause();
+        continue;
+      }
+      g.gold -= 25;
+      g.hero.hp = std::min(g.hero.maxHp, g.hero.hp + 40);
+      std::cout << "已回复 HP。\n";
+      pause();
+    }
+  }
+}
+
+bool runStage(GameState& g) {
+  printHeader("第 " + std::to_string(g.stage) + " 关");
+  printHeroPanel(g);
+
+  bool hasElite = (g.stage % 3 == 0);
+  std::cout << "\n本关将连续遭遇 3 只怪兽";
+  if (hasElite) std::cout << "（第 2 只为精英）";
+  std::cout << "。\n";
+  pause();
+
+  for (int i = 1; i <= 3; ++i) {
+    Monster m;
+    if (hasElite && i == 2)
+      m = randomElite();
+    else
+      m = randomCommon();
+
+    printHeader("战斗 " + std::to_string(i) + "/3");
+    CombatResult cr = runBattle(g, m);
+    for (const auto& s : cr.log) std::cout << s << "\n";
+    if (!cr.win) return false;
+    printHeroPanel(g);
+    pause();
+  }
+
+  std::cout << "\n*** 第 " << g.stage << " 关 通关！***\n";
+  g.score += 100;
+  char gr = gradeFromScore(g.score);
+  std::cout << "当前评级参考: " << gr << " 级（积分 " << g.score << "）\n";
+  return true;
+}
+
+void mainMenu() {
+  printHeader("金铲铲风格 · 控制台试玩版");
+  std::cout << "  操作说明：根据提示输入数字或命令即可。\n"
+            << "  关卡共 9 关；每 3 关会出现一只精英怪（本关第 2 战）。\n"
+            << "  怪兽被击败会掉落金币；角色「幸运」为暴击（双倍伤害）概率。\n\n";
+}
+
+}  // namespace
+
+int main() {
+  std::ios::sync_with_stdio(false);
+  std::cin.tie(nullptr);
+
+  mainMenu();
+  GameState g;
+  g.hero = makeVaneHellion();
+
+  std::cout << "按 Enter 开始冒险...";
+  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+  while (g.stage <= 9) {
+    printHeader("主菜单 — 第 " + std::to_string(g.stage) + " 关前");
+    printHeroPanel(g);
+    std::cout << "\n  [1] 进入战斗（推进关卡）\n"
+              << "  [2] 打开商城\n"
+              << "  [3] 查看规则说明\n"
+              << "  [0] 退出游戏\n"
+              << "\n请选择: ";
+
+    std::string cmd;
+    if (!std::getline(std::cin, cmd)) break;
+
+    if (cmd == "0") {
+      std::cout << "再见！\n";
+      return 0;
+    }
+    if (cmd == "3") {
+      printHeader("规则说明");
+      std::cout
+          << "  · 属性：HP∈[0,300]，攻击/防御非负，幸运为暴击概率。\n"
+          << "  · 范·地狱火二星后装备「狂战士之斧」：攻击前若 HP>20，扣 20 HP 并使当次伤害翻倍。\n"
+          << "  · 暴击与斧子翻倍可叠加（先斧后判定幸运）。\n"
+          << "  · 每关 3 场战斗；第 3、6、9 关的第 2 场为精英。\n\n";
+      pause();
+      continue;
+    }
+    if (cmd == "2") {
+      shopLoop(g);
+      continue;
+    }
+    if (cmd != "1") continue;
+
+    if (!runStage(g)) {
+      printHeader("游戏结束");
+      std::cout << "最终积分: " << g.score << "  评级: " << gradeFromScore(g.score) << "\n";
+      pause();
+      return 0;
+    }
+
+    ++g.stage;
+    if (g.stage > 9) {
+      printHeader("恭喜通关！");
+      printHeroPanel(g);
+      std::cout << "\n最终评级: " << gradeFromScore(g.score) << "  积分: " << g.score << "\n";
+      pause();
+      return 0;
+    }
+
+    std::cout << "\n进入下一关前可访问商店。\n是否打开商城？[y/N]: ";
+    std::string yn;
+    if (std::getline(std::cin, yn) && !yn.empty() && (yn[0] == 'y' || yn[0] == 'Y')) {
+      shopLoop(g);
+    }
+  }
+
+  return 0;
+}
+
