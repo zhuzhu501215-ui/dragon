@@ -617,3 +617,4 @@ int main() {
   return 0;
 }
 francis 将可选择英雄从15个降低到了5个 4月29日11时11分
+ppp Added the Hell Mode.增加了地狱模式 4月29日18时02分
