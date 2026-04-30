@@ -184,6 +184,7 @@ std::vector<Character> makeHeroRoster() {
 Character chooseHero() {
   const std::vector<Character> heroes = makeHeroRoster();
   while (true) {
+    // 角色选择页：展示基础面板，方便开局做流派决策（爆发/坦克/暴击等）。
     printHeader("选择你的角色（共 5 名）");
     for (size_t i = 0; i < heroes.size(); ++i) {
       const Character& h = heroes[i];
@@ -208,6 +209,7 @@ Character chooseHero() {
       pause();
       return selected;
     }
+    // 输入兜底：防止非法输入导致直接退出选择流程。
     std::cout << "输入无效，请输入 1-" << heroes.size() << "。\n";
     pause();
   }
@@ -221,6 +223,10 @@ struct Monster {
   int def = 0;
   int gold = 0;
   bool elite = false;
+  // [Boss] 0/1 表示普通或精英；boss 支持双命和阶段强化。
+  bool boss = false;
+  int lives = 1;
+  int phase = 1;
 };
 
 Monster makeSlime(bool elite) {
@@ -287,6 +293,16 @@ Monster randomElite() {
   return makeGolem(true);
 }
 
+Monster makeStageBoss(int stage) {
+  Monster b = randomElite();
+  b.boss = true;
+  b.lives = 2;
+  b.phase = 1;
+  b.name = "Boss·" + b.name;
+  b.gold += 20 + stage * 2;
+  return b;
+}
+
 struct CombatResult {
   bool win = false;
   int goldEarned = 0;
@@ -308,6 +324,7 @@ struct GameState {
 
 // [Curve] 难度曲线：按关卡提升怪物属性，前中后期增幅逐步提高。
 int stageHpBonus(int stage) {
+  // 前 3 关小幅提升，4-6 关中速提升，7+ 关高压提升。
   if (stage <= 1) return 0;
   if (stage <= 3) return 14 * (stage - 1);
   if (stage <= 6) return 32 + 20 * (stage - 3);
@@ -316,6 +333,7 @@ int stageHpBonus(int stage) {
 
 // [Curve] 难度曲线：攻击成长略低于血量，避免后期秒杀感太强。
 int stageAtkBonus(int stage) {
+  // 攻击成长稍缓于血量成长，避免后期被怪物瞬间打崩。
   if (stage <= 1) return 0;
   if (stage <= 3) return 3 * (stage - 1);
   if (stage <= 6) return 6 + 4 * (stage - 3);
@@ -324,6 +342,7 @@ int stageAtkBonus(int stage) {
 
 // [Curve] 难度曲线：防御缓慢增长，保证输出构筑仍有价值。
 int stageDefBonus(int stage) {
+  // 防御曲线压得更平，让高攻击构筑始终有存在感。
   if (stage <= 2) return 0;
   if (stage <= 6) return stage - 2;
   return 4 + (stage - 6) * 2;
@@ -331,6 +350,7 @@ int stageDefBonus(int stage) {
 
 // [Curve] 掉落曲线：关卡越高，金币倍率越高；精英额外加成。
 int goldDropMultiplierPercent(int stage, bool elite) {
+  // 关卡越高金币倍率越高；精英/Boss 额外奖励用于支撑商店消费。
   int p = 100 + (stage - 1) * 8;
   if (elite) p += 18;
   return p;
@@ -338,6 +358,7 @@ int goldDropMultiplierPercent(int stage, bool elite) {
 
 // [Curve] 通关奖励曲线：用于每关结算时的保底金币补给。
 int stageClearGoldBonus(int stage) {
+  // 每关通关保底金币，降低“卡关后没钱补强”的挫败感。
   if (stage <= 3) return 8 + stage * 2;
   if (stage <= 6) return 16 + stage * 3;
   return 26 + stage * 4;
@@ -345,11 +366,21 @@ int stageClearGoldBonus(int stage) {
 
 // [Curve] 将基础怪物按当前关卡缩放，形成平滑难度爬升。
 Monster scaleMonsterForStage(Monster m, int stage) {
+  // 统一缩放入口：所有怪物进入战斗前都走这套成长规则。
   m.maxHp += stageHpBonus(stage) + (m.elite ? stage * 6 : 0);
   m.hp = m.maxHp;
   m.atk += stageAtkBonus(stage) + (m.elite ? stage / 2 : 0);
   m.def += stageDefBonus(stage);
   m.gold = std::max(1, (m.gold * goldDropMultiplierPercent(stage, m.elite)) / 100);
+  // [Boss] Boss 作为关卡核心战，基础面板再额外强化一档。
+  if (m.boss) {
+    // Boss 额外乘区：突出关卡节点战的压迫感和奖励感。
+    m.maxHp = m.maxHp * 11 / 10;
+    m.hp = m.maxHp;
+    m.atk += 4 + stage;
+    m.def += 2;
+    m.gold = m.gold * 13 / 10;
+  }
   return m;
 }
 
@@ -372,6 +403,7 @@ int heroAttackDamage(GameState& g, int monsterDef, bool& crit, bool& axeUsed,
 
   bool hasAxe = g.hero.hasBerserkerAxe();
   if (hasAxe && g.hero.hp > 20) {
+    // 专属斧子是“以血换爆发”的风险收益机制。
     g.hero.hp -= 20;
     base *= 2;
     axeUsed = true;
@@ -379,6 +411,7 @@ int heroAttackDamage(GameState& g, int monsterDef, bool& crit, bool& axeUsed,
   }
 
   if (rand01() < g.hero.luck) {
+    // 幸运直接对应暴击概率，和斧子倍率可叠加。
     base *= 2;
     crit = true;
     note += "[幸运暴击] 双倍伤害 ";
@@ -386,9 +419,25 @@ int heroAttackDamage(GameState& g, int monsterDef, bool& crit, bool& axeUsed,
   return base;
 }
 
-void monsterAttack(GameState& g, Monster& m) {
+int monsterAttack(GameState& g, Monster& m, std::string& note) {
+  note.clear();
   int dmg = calcDamage(m.atk, g.hero.def);
+  // [Boss] 二阶段技能：狂怒重击（高额追加伤害）+ 灼烧（固定掉血）。
+  if (m.boss && m.phase >= 2) {
+    // 二阶段技能 1：在普通攻击上追加一次重击。
+    if (rand01() < 0.38) {
+      int extra = std::max(3, m.atk / 3);
+      dmg += extra;
+      note += "[Boss二阶段·狂怒重击] +" + std::to_string(extra) + " ";
+    }
+    // 二阶段技能 2：独立判定的持续性压血效果。
+    if (rand01() < 0.28) {
+      g.hero.hp -= 6;
+      note += "[Boss二阶段·灼烧] 额外-6HP ";
+    }
+  }
   g.hero.hp -= dmg;
+  return dmg;
 }
 
 CombatResult runBattle(GameState& g, Monster m) {
@@ -396,11 +445,12 @@ CombatResult runBattle(GameState& g, Monster m) {
   // [Curve] 在战斗入口按关卡缩放怪物属性和掉落。
   m = scaleMonsterForStage(m, g.stage);
   std::ostringstream header;
-  header << ">>> 遭遇 " << (m.elite ? "[精英] " : "") << m.name << " <<<";
+  header << ">>> 遭遇 " << (m.boss ? "[Boss] " : (m.elite ? "[精英] " : "")) << m.name << " <<<";
   r.log.push_back(header.str());
 
   int round = 0;
   while (g.hero.hp > 0 && m.hp > 0) {
+    // 回合结构：先手（玩家）-> 结算击杀 -> 反击（怪物）-> 生存检查。
     ++round;
     std::ostringstream line;
     line << "-- 第 " << round << " 回合 --";
@@ -420,6 +470,21 @@ CombatResult runBattle(GameState& g, Monster m) {
     r.log.push_back(line.str());
 
     if (m.hp <= 0) {
+      // [Boss] 第一条命打空后进入二阶段（第二条命）。
+      if (m.boss && m.lives > 1) {
+        --m.lives;
+        m.phase = 2;
+        m.maxHp = std::max(1, m.maxHp * 70 / 100);
+        m.hp = m.maxHp;
+        m.atk += 8 + g.stage * 2;
+        m.def += 3 + g.stage / 2;
+        // 进入二阶段后立即继续战斗，不发放击杀奖励。
+        std::ostringstream phaseShift;
+        phaseShift << "  [!!] " << m.name
+                   << " 进入二阶段：第二条命激活，攻击与防御大幅提升！";
+        r.log.push_back(phaseShift.str());
+        continue;
+      }
       r.win = true;
       r.goldEarned = m.gold;
       std::ostringstream win;
@@ -430,11 +495,12 @@ CombatResult runBattle(GameState& g, Monster m) {
       break;
     }
 
-    monsterAttack(g, m);
-    int md = calcDamage(m.atk, g.hero.def);
+    std::string mnote;
+    int md = monsterAttack(g, m, mnote);
     std::ostringstream defl;
     defl << "  [*] " << m.name << " 反击 " << md << " → 你剩余 HP "
          << std::max(0, g.hero.hp) << "/" << g.hero.maxHp;
+    if (!mnote.empty()) defl << "  " << mnote;
     r.log.push_back(defl.str());
 
     if (g.hero.hp <= 0) {
@@ -637,7 +703,8 @@ bool runStage(GameState& g) {
   for (int i = 1; i <= 3; ++i) {
     Monster m;
     if (hasElite && i == 2)
-      m = randomElite();
+      // 每 3 关的中间战固定 Boss，用于形成节奏峰值。
+      m = makeStageBoss(g.stage);
     else
       m = randomCommon();
 
@@ -706,7 +773,7 @@ int main() {
           << "  · 属性：HP∈[0,300]，攻击/防御非负，幸运为暴击概率。\n"
           << "  · 范·地狱火二星后装备「狂战士之斧」：攻击前若 HP>20，扣 20 HP 并使当次伤害翻倍。\n"
           << "  · 暴击与斧子翻倍可叠加（先斧后判定幸运）。\n"
-          << "  · 每关 3 场战斗；第 3、6、9 关的第 2 场为精英。\n"
+          << "  · 每关 3 场战斗；第 3、6、9 关第 2 场为双命 Boss，第二阶段技能更强。\n"
           << "  · 难度曲线：怪物属性会随关卡成长；掉落和关卡奖励也会同步提升。\n\n";
       pause();
       continue;
