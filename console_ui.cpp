@@ -1,3 +1,5 @@
+// 控制台 UI 实现：框线字符与英雄信息展示
+
 #include "console_ui.h"
 #include "hero_system.h"
 #include "utils.h"
@@ -11,6 +13,7 @@ void printHeader(const std::string& t) {
             << "╚" << repeat('=', 58) << "╝\n";
 }
 
+// 按比例填充条形图，cur/max 超出范围时夹紧到 [0, width]
 void printBar(const std::string& title, int cur, int max, char fill, int width) {
   int filled = 0;
   if (max > 0) filled = static_cast<int>(std::llround((1.0 * cur / max) * width));
@@ -20,6 +23,7 @@ void printBar(const std::string& title, int cur, int max, char fill, int width) 
   std::cout << "] " << cur << "/" << max << "\n";
 }
 
+// 从 GameState 读取英雄与全局信息，并调用 heroModel 输出立绘多行
 void printHeroPanel(const GameState& g) {
   std::cout << "\n┌── Hero ────────────────────────────────────────────────┐\n";
   std::cout << "│ " << g.hero.name << "  ★" << g.hero.stars << "\n";

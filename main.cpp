@@ -1,3 +1,5 @@
+// 程序入口：主菜单、教程、九关流程、商店与通关后地狱模式菜单
+
 #include <iostream>
 #include <limits>
 #include <string>
@@ -6,6 +8,7 @@
 #include "hero_system.h"
 
 int main() {
+  // 加速 C++ 标准流与 stdio 的同步方式（控制台游戏常用）
   std::ios::sync_with_stdio(false);
   std::cin.tie(nullptr);
   Game::printStartScreen();
@@ -22,6 +25,7 @@ int main() {
   g.hero = Game::chooseHero();
   std::cout << "Press Enter to start the adventure...";
   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  // 主线：第 1～9 关，每关主菜单可战斗、商店、规则或退出
   while (g.stage <= 9) {
     Game::printTutorialMainMenuHint(g);
     Game::printHeader("TEXT_110 — Stage " + std::to_string(g.stage) + "TEXT_111");
@@ -79,6 +83,7 @@ int main() {
       Game::shopLoop(g);
     }
   }
+  // 普通九关通关后：可反复挑战地狱模式或调整 Boss 倍率
   while (g.normalCleared) {
     Game::printHeader("Post-clear Menu");
     std::cout << "  [1] TEXT_141Hell Mode\n";

@@ -1,3 +1,5 @@
+// 地狱模式：三场高强度战斗，胜利解锁自定义 Boss 倍率
+
 #include "hell_mode.h"
 #include "battle_system.h"
 #include "hero_system.h"
@@ -23,6 +25,7 @@ bool runHellMode(GameState& g) {
             << "╚" << repeat('=', 58) << "╝\n";
   std::cout << "3 stages total: Elite x1.50, Elite x2.00, Boss x" << std::fixed << std::setprecision(2)
             << g.customBossMultiplier << std::defaultfloat << "\n";
+  // 进入地狱前回满生命与体力
   g.hero.hp = g.hero.maxHp;
   g.hero.stamina = g.hero.maxStamina;
   std::cout << "TEXT_46Hell ModeTEXT_47stamina .\n";
@@ -92,7 +95,7 @@ bool runHellMode(GameState& g) {
     std::cout << "└────────────────────────────────────────────────────────┘\n";
     pause();
   }
-  g.hellCleared = true;
+  g.hellCleared = true;  // 三场全胜
   std::cout << "\n"
             << "╔" << repeat('=', 58) << "╗\n"
             << "║ " << std::left << std::setw(56) << "Hell ModeTEXT_51" << " ║\n"
@@ -103,6 +106,7 @@ bool runHellMode(GameState& g) {
   return true;
 }
 
+// 总分阈值对应 S/A/B/C/D
 char gradeFromScore(int s) {
   if (s >= 900) return 'S';
   if (s >= 650) return 'A';
