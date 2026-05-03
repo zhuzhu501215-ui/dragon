@@ -1,4 +1,4 @@
-// UI 流程：单关战斗循环、开场/结局 ASCII、分步教程提示
+// UI flow: stage loop, start/end ASCII art, staged tutorial hints.
 
 #include "ui_flow.h"
 #include "console_ui.h"
@@ -11,7 +11,7 @@ namespace Game {
 bool runStage(GameState& g) {
   printHeader("Stage " + std::to_string(g.stage) + "");
   printHeroPanel(g);
-  // 每第三关第二场为 Boss（精英）
+  // Every third stage: fight 2 of 3 is the boss (elite).
   bool hasElite = (g.stage % 3 == 0);
   printTutorialStageHint(g, hasElite);
   std::cout << "\nThis stage has 3 consecutive monster encounters";
@@ -32,7 +32,7 @@ bool runStage(GameState& g) {
     pause();
   }
   std::cout << "\n*** Stage " << g.stage << " Cleared!***\n";
-  // 通关奖励：金币与分数累加到 GameState
+  // Stage clear rewards: add gold and score to GameState.
   int clearGold = stageClearGoldBonus(g.stage);
   g.gold += clearGold;
   std::cout << "[Stage Reward] Gold +" << clearGold << "\n";
@@ -45,7 +45,7 @@ bool runStage(GameState& g) {
   return true;
 }
 
-// 显示规则摘要（与主线流程中的详细规则区分）
+// Short rules blurb (vs. full rules from the in-game menu).
 void mainMenu() {
   printHeader("Golden Spatula Style - Console Demo");
   std::cout << "  ActionsTEXT_54：TEXT_55 .\n"
@@ -54,7 +54,7 @@ void mainMenu() {
             << "  TEXT_65Hell Mode（3TEXT_66） .\n\n";
 }
 
-// 游戏标题 ASCII 横幅
+// ASCII title banner.
 void printStartScreen() {
   std::cout << "\n";
   std::cout << "==============================================================\n";
@@ -71,7 +71,7 @@ void printStartScreen() {
   std::cout << "\n";
 }
 
-// 胜利或失败时的结算横幅与统计摘要
+// End-game banner and score summary (win or loss).
 void printEndingScreen(bool win, const GameState& g) {
   std::cout << "\n";
   std::cout << "==============================================================\n";
@@ -100,7 +100,7 @@ void printEndingScreen(bool win, const GameState& g) {
   std::cout << "\n";
 }
 
-// 教程总览：属性含义与 Boss 出现关卡
+// Tutorial: stat meanings and which stages spawn bosses.
 void printTutorialIntro() {
   printHeader("Beginner Tutorial Enabled");
   std::cout
@@ -110,7 +110,7 @@ void printTutorialIntro() {
   pause();
 }
 
-// 首次进入主菜单时提示各选项用途（仅一次）
+// First-time main menu: explain each option (once).
 void printTutorialMainMenuHint(GameState& g) {
   if (!g.tutorialMode || g.tutorialMainMenuHintShown) return;
   printHeader("Tutorial: Main Menu");
@@ -123,7 +123,7 @@ void printTutorialMainMenuHint(GameState& g) {
   pause();
 }
 
-// 首次进商店时的购买优先级建议
+// First visit to shop: suggested buy order.
 void printTutorialShopHint(GameState& g) {
   if (!g.tutorialMode || g.tutorialShopHintShown) return;
   printHeader("Tutorial: Shop");
@@ -137,7 +137,7 @@ void printTutorialShopHint(GameState& g) {
   pause();
 }
 
-// 开战前通用提示；若本关有 Boss 则追加 Boss 说明（各触发一次）
+// Pre-battle hints; extra boss tip if this stage has one (each once).
 void printTutorialStageHint(GameState& g, bool hasElite) {
   if (!g.tutorialMode) return;
   if (!g.tutorialStageHintShown) {
@@ -160,7 +160,7 @@ void printTutorialStageHint(GameState& g, bool hasElite) {
   }
 }
 
-// 通关后一次性的资源与备战提示
+// One-time post-stage resource and prep reminder.
 void printTutorialPostStageHint(GameState& g) {
   if (!g.tutorialMode || g.tutorialPostStageHintShown) return;
   printHeader("Tutorial: Clear Summary");

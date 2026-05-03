@@ -1,4 +1,4 @@
-// 怪物工厂与关卡数值曲线
+// Monster factories and stage stat curves.
 
 #include "monster_system.h"
 
@@ -52,7 +52,7 @@ Monster makeGolem(bool elite) {
   return m;
 }
 
-// 四选一普通怪（非精英）
+// Pick one of four common (non-elite) templates.
 Monster randomCommon() {
   int r = randInt(0, 3);
   if (r == 0) return makeSlime(false);
@@ -61,7 +61,7 @@ Monster randomCommon() {
   return makeGolem(false);
 }
 
-// 四选一精英模板
+// Pick one of four elite templates.
 Monster randomElite() {
   int r = randInt(0, 3);
   if (r == 0) return makeSlime(true);
@@ -70,7 +70,7 @@ Monster randomElite() {
   return makeGolem(true);
 }
 
-// 基于随机精英生成关卡 Boss：两条命、分阶段标记、额外金币
+// Stage boss from random elite: two lives, phase flag, bonus gold.
 Monster makeStageBoss(int stage) {
   Monster b = randomElite();
   b.boss = true;
@@ -121,7 +121,7 @@ int stageClearGoldBonus(int stage) {
   return 26 + stage * 4;
 }
 
-// 将怪物四维与金币整体乘以 factor，至少为 1
+// Multiply HP/ATK/DEF/gold by factor; each stat floored at 1.
 Monster scaledMonster(Monster m, double factor) {
   auto s = [factor](int v) { return std::max(1, static_cast<int>(std::llround(v * factor))); };
   m.maxHp = s(m.maxHp);
@@ -132,7 +132,7 @@ Monster scaledMonster(Monster m, double factor) {
   return m;
 }
 
-// 叠加关卡成长与金币百分比；Boss 再乘 HP 与金币系数并加攻防
+// Stack stage growth and gold percent; bosses get extra HP/ATK/DEF/gold.
 Monster scaleMonsterForStage(Monster m, int stage) {
   m.maxHp += stageHpBonus(stage) + (m.elite ? stage * 4 : 0);
   m.hp = m.maxHp;
@@ -149,7 +149,7 @@ Monster scaleMonsterForStage(Monster m, int stage) {
   return m;
 }
 
-// 从标准输入读取倍率；空行表示保持 current
+// Read multiplier from stdin; empty line keeps current.
 double askBossMultiplier(double current) {
   while (true) {
     std::cout << "\n"

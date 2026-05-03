@@ -1,4 +1,4 @@
-// 工具函数实现
+// Utility implementations.
 
 #include "utils.h"
 
@@ -10,13 +10,13 @@ std::mt19937& rng() {
   return gen;
 }
 
-// [0.0, 1.0) 均匀随机
+// Uniform random in [0.0, 1.0).
 double rand01() {
   std::uniform_real_distribution<double> d(0.0, 1.0);
   return d(rng());
 }
 
-// 闭区间 [a, b] 整数随机
+// Uniform random integer in inclusive range [a, b].
 int randInt(int a, int b) {
   std::uniform_int_distribution<int> d(a, b);
   return d(rng());
@@ -27,12 +27,12 @@ void pause() {
   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
-// 重复字符 n 次组成字符串（用于画框线）
+// Repeat character c n times (for box borders).
 std::string repeat(char c, int n) {
   return std::string(std::max(0, n), c);
 }
 
-// ANSI 清屏并把光标移到左上角
+// ANSI clear screen and move cursor to top-left.
 void clearScreen() {
   std::cout << "\x1B[2J\x1B[H";
 }

@@ -1,7 +1,7 @@
 #ifndef HELL_MODE_H
 #define HELL_MODE_H
 
-// 地狱模式三连战与根据总分评级的字母档
+// Hell mode gauntlet and letter grade from total score.
 
 #include "game_data.h"
 

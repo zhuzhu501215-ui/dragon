@@ -1,7 +1,7 @@
 #ifndef MONSTER_SYSTEM_H
 #define MONSTER_SYSTEM_H
 
-// 怪物生成、按关卡缩放属性、金币倍率与通关金币奖励
+// Monster factories, stage scaling, gold multipliers, clear bonuses.
 
 #include "game_data.h"
 
@@ -22,11 +22,11 @@ int stageDefBonus(int stage);
 int goldDropMultiplierPercent(int stage, bool elite);
 int stageClearGoldBonus(int stage);
 
-// 全体数值乘以 factor（地狱模式等）
+// Scale all combat stats and gold by factor (e.g. hell mode).
 Monster scaledMonster(Monster m, double factor);
-// 按关卡追加 HP/攻防与金币倍率，Boss 再额外强化
+// Add stage-based HP/ATK/DEF/gold; bosses get extra bumps.
 Monster scaleMonsterForStage(Monster m, int stage);
-// 交互输入最终 Boss 倍率 [1, 10]，非法则重试
+// Prompt for final boss multiplier in [1, 10]; retry on bad input.
 double askBossMultiplier(double current);
 
 }
